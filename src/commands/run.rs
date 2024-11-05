@@ -45,8 +45,16 @@ impl RunArgs {
                     let cur_value = *last_value.lock().unwrap();
                     let output = pid.next_control_output(cur_value).output;
                     let output = output.clamp(0.0, 100.0);
+                    client
+                        .publish(
+                            self.output_topic.clone(),
+                            QoS::AtLeastOnce,
+                            false,
+                            output.to_string(),
+                        )
+                        .await
+                        .unwrap();
 
-                    println!("Current value: {}, PID output: {:?}", cur_value, output);
                     interval.tick().await;
                 }
             });
@@ -57,7 +65,6 @@ impl RunArgs {
             if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
                 let payload = publish.payload;
                 let payload = std::str::from_utf8(&payload).unwrap();
-                println!("Received payload: {}", payload);
 
                 let mut last_value = last_value.lock().unwrap();
                 *last_value = payload.parse::<f32>().unwrap();
