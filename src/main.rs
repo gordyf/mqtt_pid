@@ -11,13 +11,13 @@ struct Args {
     #[arg(short, long)]
     setpoint: f32,
 
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     kp: f32,
 
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     ki: f32,
 
-    #[arg(long)]
+    #[arg(long, allow_hyphen_values = true)]
     kd: f32,
 
     #[command(subcommand)]
