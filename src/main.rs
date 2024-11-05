@@ -12,12 +12,12 @@ async fn async_main() {
     mqttoptions.set_max_packet_size(200000, 1000);
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-    client.subscribe("#", QoS::AtMostOnce).await.unwrap();
+    client.subscribe("air/pm25", QoS::AtMostOnce).await.unwrap();
 
-    let mut pid = Pid::new(0.85, 100.0);
-    pid.p(0.03, 100.0);
-    pid.i(0.002, 100.0);
-    pid.d(0.01, 100.0);
+    let mut pid = Pid::new(2.0, 100.0);
+    pid.p(-5.0, 100.0);
+    pid.i(-0.50, 100.0);
+    pid.d(-1.0, 100.0);
 
     let last_value: Arc<Mutex<f32>> = Arc::new(Mutex::new(0.0));
 
@@ -29,7 +29,7 @@ async fn async_main() {
             loop {
                 let cur_value = *last_value.lock().unwrap();
                 let output = pid.next_control_output(cur_value).output;
-                let output = 100.0 - output.clamp(0.0, 100.0);
+                let output = output.clamp(0.0, 100.0);
 
                 println!("Current value: {}, PID output: {:?}", cur_value, output);
                 interval.tick().await;
@@ -39,10 +39,14 @@ async fn async_main() {
 
     loop {
         let notification = eventloop.poll().await.unwrap();
-        println!("Received = {:?}", notification);
+        if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
+            let payload = publish.payload;
+            let payload = std::str::from_utf8(&payload).unwrap();
+            println!("Received payload: {}", payload);
 
-        let mut last_value = last_value.lock().unwrap();
-        *last_value = rand::random::<f32>() * 100.0;
+            let mut last_value = last_value.lock().unwrap();
+            *last_value = payload.parse::<f32>().unwrap();
+        }
     }
 }
 
