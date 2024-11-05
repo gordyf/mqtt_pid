@@ -9,7 +9,7 @@ use tokio::time;
 async fn async_main() {
     let mut mqttoptions = MqttOptions::new("epyc", "epyc.taileca64.ts.net", 1883);
     mqttoptions.set_keep_alive(Duration::from_secs(5));
-    mqttoptions.set_max_packet_size(200000, 1000);
+    mqttoptions.set_max_packet_size(2000, 1000);
 
     let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
     client.subscribe("air/pm25", QoS::AtMostOnce).await.unwrap();
