@@ -8,6 +8,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
+clap = "4.5.20"
 pid = "4.0.0"
 rand = "0.8.5"
 rumqttc = "0.24.0"
