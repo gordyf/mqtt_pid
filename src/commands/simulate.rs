@@ -1,6 +1,6 @@
 use std::io::{BufRead, BufReader};
 
-use chrono::{DateTime, Duration, Timelike, Utc};
+use chrono::{DateTime, Duration, TimeZone, Timelike, Utc};
 use clap::Parser;
 use pid::Pid;
 
@@ -79,7 +79,7 @@ impl SimulateArgs {
         while t_s < end_time {
             // Update current_value based on events
             while event_index < events.len()
-                && events[event_index].timestamp <= DateTime::<Utc>::from_utc(t_s, Utc)
+                && events[event_index].timestamp <= Utc.from_utc_datetime(&t_s)
             {
                 current_value = events[event_index].value;
                 event_index += 1;
