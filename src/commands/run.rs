@@ -63,11 +63,12 @@ impl RunArgs {
         loop {
             let notification = eventloop.poll().await.unwrap();
             if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
-                let payload = publish.payload;
-                let payload = std::str::from_utf8(&payload).unwrap();
-
-                let mut last_value = last_value.lock().unwrap();
-                *last_value = payload.parse::<f32>().unwrap();
+                if let Ok(payload) = std::str::from_utf8(&publish.payload) {
+                    if let Ok(value) = payload.parse::<f32>() {
+                        let mut last_value = last_value.lock().unwrap();
+                        *last_value = value;
+                    }
+                }
             }
         }
     }
