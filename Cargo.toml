@@ -8,7 +8,9 @@ lto = true
 codegen-units = 1
 
 [dependencies]
+chrono = "0.4.38"
 clap = { version = "4.5.20", features = ["derive", "env"] }
+csv = "1.3.0"
 pid = "4.0.0"
 rand = "0.8.5"
 rumqttc = "0.24.0"

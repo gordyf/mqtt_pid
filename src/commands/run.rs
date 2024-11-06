@@ -23,7 +23,7 @@ pub struct RunArgs {
 }
 
 impl RunArgs {
-    pub async fn run(self: RunArgs, mut pid: Pid<f32>) {
+    pub async fn run(self: RunArgs, mut pid: Pid<f32>) -> Result<(), Box<dyn std::error::Error>> {
         let mut mqttoptions = MqttOptions::new("mqtt", self.mqtt_host, self.mqtt_port);
         mqttoptions.set_keep_alive(Duration::from_secs(5));
         mqttoptions.set_max_packet_size(2000, 1000);

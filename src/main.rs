@@ -30,7 +30,8 @@ enum Commands {
     Simulate(SimulateArgs),
 }
 
-async fn async_main() {
+#[tokio::main]
+async fn main() {
     let args = Args::parse();
     let mut pid = Pid::new(args.setpoint, 100.0);
     pid.p(args.kp, 100.0);
@@ -41,9 +42,5 @@ async fn async_main() {
         Commands::Run(command) => command.run(pid).await,
         Commands::Simulate(command) => command.run(pid).await,
     }
-}
-
-#[tokio::main]
-async fn main() {
-    async_main().await;
+    .unwrap();
 }
