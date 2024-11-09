@@ -42,6 +42,8 @@ impl RunArgs {
             task::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(1000));
                 loop {
+                    interval.tick().await;
+
                     let cur_value = *last_value.lock().unwrap();
                     let output = pid.next_control_output(cur_value).output;
                     let output = output.clamp(0.0, 100.0);
@@ -54,8 +56,6 @@ impl RunArgs {
                         )
                         .await
                         .unwrap();
-
-                    interval.tick().await;
                 }
             });
         }
