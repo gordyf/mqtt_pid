@@ -42,6 +42,7 @@ impl RunArgs {
             task::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(1000));
                 let mut last_input_value = 0.0;
+                let mut last_output_value = 0.0;
                 loop {
                     interval.tick().await;
 
@@ -54,15 +55,18 @@ impl RunArgs {
                         .output
                         .clamp(0.0, 100.0);
 
-                    client
-                        .publish(
-                            output_topic.clone(),
-                            QoS::AtLeastOnce,
-                            false,
-                            output.to_string(),
-                        )
-                        .await
-                        .unwrap();
+                    if (last_output_value - output).abs() >= 1.0 {
+                        last_output_value = output;
+                        client
+                            .publish(
+                                output_topic.clone(),
+                                QoS::AtLeastOnce,
+                                false,
+                                output.to_string(),
+                            )
+                            .await
+                            .unwrap();
+                    }
                 }
             });
         }
