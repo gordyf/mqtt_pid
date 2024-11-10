@@ -1,9 +1,8 @@
 use clap::Parser;
 use pid::Pid;
 use rumqttc::{AsyncClient, MqttOptions, QoS};
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::time::Duration;
+use tokio::sync::mpsc;
 use tokio::task;
 use tokio::time;
 
@@ -34,22 +33,30 @@ impl RunArgs {
             .await
             .unwrap();
 
-        let last_value: Arc<Mutex<f32>> = Arc::new(Mutex::new(0.0));
+        let (tx, mut rx) = mpsc::channel(32);
 
         {
-            let last_value = Arc::clone(&last_value);
+            let client = client.clone();
+            let output_topic = self.output_topic.clone();
 
             task::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(1000));
+                let mut last_input_value = 0.0;
                 loop {
                     interval.tick().await;
 
-                    let cur_value = *last_value.lock().unwrap();
-                    let output = pid.next_control_output(cur_value).output;
-                    let output = output.clamp(0.0, 100.0);
+                    while let Ok(value) = rx.try_recv() {
+                        last_input_value = value;
+                    }
+
+                    let output = pid
+                        .next_control_output(last_input_value)
+                        .output
+                        .clamp(0.0, 100.0);
+
                     client
                         .publish(
-                            self.output_topic.clone(),
+                            output_topic.clone(),
                             QoS::AtLeastOnce,
                             false,
                             output.to_string(),
@@ -65,8 +72,7 @@ impl RunArgs {
             if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
                 if let Ok(payload) = std::str::from_utf8(&publish.payload) {
                     if let Ok(value) = payload.parse::<f32>() {
-                        let mut last_value = last_value.lock().unwrap();
-                        *last_value = value;
+                        tx.send(value).await.unwrap();
                     }
                 }
             }
