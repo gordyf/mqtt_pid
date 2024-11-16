@@ -22,7 +22,7 @@ pub struct RunArgs {
 }
 
 impl RunArgs {
-    pub async fn run(self: RunArgs, mut pid: Pid<f32>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn run(self: RunArgs, mut pid: Pid<f64>) -> Result<(), Box<dyn std::error::Error>> {
         let mut mqttoptions = MqttOptions::new("mqtt_pid", self.mqtt_host, self.mqtt_port);
         mqttoptions.set_keep_alive(Duration::from_secs(5));
         mqttoptions.set_max_packet_size(2000, 1000);
@@ -48,7 +48,7 @@ impl RunArgs {
                     let last_input_value = *rx.borrow_and_update();
 
                     let output = pid
-                        .next_control_output(last_input_value as f32)
+                        .next_control_output(last_input_value as f64)
                         .output
                         .clamp(0.0, 100.0)
                         .round() as u8;

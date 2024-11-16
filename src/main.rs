@@ -21,7 +21,7 @@ struct Args {
     kd: f32,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand, Clone)]
@@ -33,14 +33,13 @@ enum Commands {
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
-    let mut pid = Pid::new(args.setpoint, 100.0);
+    let mut pid = Pid::<f64>::new(args.setpoint, 100.0);
     pid.p(args.kp, 100.0);
     pid.i(args.ki, 100.0);
     pid.d(args.kd, 100.0);
 
-    match args.command.clone().unwrap() {
-        Commands::Run(command) => command.run(pid).await,
-        Commands::Simulate(command) => command.run(pid).await,
-    }
-    .unwrap();
+    match args.command {
+        Commands::Run(command) => command.run(pid).await.unwrap(),
+        Commands::Simulate(command) => command.run(pid).await.unwrap(),
+    };
 }
