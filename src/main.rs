@@ -9,16 +9,16 @@ use pid::Pid;
 #[derive(Parser)]
 struct Args {
     #[arg(short, long)]
-    setpoint: f32,
+    setpoint: f64,
 
     #[arg(long, allow_hyphen_values = true)]
-    kp: f32,
+    kp: f64,
 
     #[arg(long, allow_hyphen_values = true)]
-    ki: f32,
+    ki: f64,
 
     #[arg(long, allow_hyphen_values = true)]
-    kd: f32,
+    kd: f64,
 
     #[command(subcommand)]
     command: Commands,
@@ -30,7 +30,7 @@ enum Commands {
     Simulate(SimulateArgs),
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() {
     let args = Args::parse();
     let mut pid = Pid::<f64>::new(args.setpoint, 100.0);
