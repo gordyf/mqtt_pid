@@ -44,7 +44,7 @@ impl RunArgs {
 
             task::spawn(async move {
                 let mut interval = time::interval(Duration::from_millis(1000));
-                let mut last_output_value: u8 = 0;
+                let mut last_output_value: Option<u8> = None;
                 loop {
                     interval.tick().await;
 
@@ -56,10 +56,10 @@ impl RunArgs {
                         .clamp(0.0, 100.0)
                         .round() as u8;
 
-                    if last_output_value != output {
+                    if last_output_value != Some(output) {
                         debug!("Emitting new output value: {}", output);
-                        last_output_value = output;
-                        if let Err(e) = client
+
+                        match client
                             .publish(
                                 output_topic.clone(),
                                 QoS::AtLeastOnce,
@@ -68,7 +68,8 @@ impl RunArgs {
                             )
                             .await
                         {
-                            error!("Failed to publish to MQTT topic: {}", e);
+                            Err(e) => error!("Failed to publish to MQTT topic: {}", e),
+                            Ok(_) => last_output_value = Some(output),
                         }
                     }
                 }
