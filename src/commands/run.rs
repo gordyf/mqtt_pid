@@ -28,10 +28,9 @@ impl RunArgs {
         mqttoptions.set_max_packet_size(2000, 1000);
 
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
-        client
-            .subscribe(self.input_topic, QoS::AtMostOnce)
-            .await
-            .unwrap();
+        if let Err(e) = client.subscribe(self.input_topic, QoS::AtMostOnce).await {
+            panic!("Failed to subscribe to MQTT topic: {}", e);
+        }
 
         let (tx, mut rx) = watch::channel(0);
 
@@ -55,7 +54,7 @@ impl RunArgs {
 
                     if last_output_value != output {
                         last_output_value = output;
-                        client
+                        if let Err(e) = client
                             .publish(
                                 output_topic.clone(),
                                 QoS::AtLeastOnce,
@@ -63,19 +62,29 @@ impl RunArgs {
                                 output.to_string(),
                             )
                             .await
-                            .unwrap();
+                        {
+                            eprintln!("Failed to publish to MQTT topic: {}", e);
+                        }
                     }
                 }
             });
         }
 
         loop {
-            let notification = eventloop.poll().await.unwrap();
-            if let rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish)) = notification {
-                if let Ok(payload) = std::str::from_utf8(&publish.payload) {
-                    if let Ok(value) = payload.parse::<u16>() {
-                        tx.send(value).unwrap();
+            let notification = eventloop.poll().await;
+            match notification {
+                Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish))) => {
+                    if let Ok(payload) = std::str::from_utf8(&publish.payload) {
+                        if let Ok(value) = payload.parse::<u16>() {
+                            if let Err(e) = tx.send(value) {
+                                eprintln!("Failed to send via channel: {}", e);
+                            }
+                        }
                     }
+                }
+                Ok(_) => {}
+                Err(e) => {
+                    eprintln!("MQTT error: {:?}", e);
                 }
             }
         }
