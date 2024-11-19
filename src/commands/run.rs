@@ -1,4 +1,7 @@
 use clap::Parser;
+use log::debug;
+use log::error;
+use log::info;
 use pid::Pid;
 use rumqttc::{AsyncClient, MqttOptions, QoS};
 use std::time::Duration;
@@ -29,7 +32,8 @@ impl RunArgs {
 
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
         if let Err(e) = client.subscribe(self.input_topic, QoS::AtMostOnce).await {
-            panic!("Failed to subscribe to MQTT topic: {}", e);
+            error!("Failed to subscribe to MQTT topic: {}", e);
+            return Err(Box::new(e));
         }
 
         let (tx, mut rx) = watch::channel(0);
@@ -53,6 +57,7 @@ impl RunArgs {
                         .round() as u8;
 
                     if last_output_value != output {
+                        debug!("Emitting new output value: {}", output);
                         last_output_value = output;
                         if let Err(e) = client
                             .publish(
@@ -63,12 +68,14 @@ impl RunArgs {
                             )
                             .await
                         {
-                            eprintln!("Failed to publish to MQTT topic: {}", e);
+                            error!("Failed to publish to MQTT topic: {}", e);
                         }
                     }
                 }
             });
         }
+
+        info!("Topic subscribed; waiting for events.");
 
         loop {
             let notification = eventloop.poll().await;
@@ -76,15 +83,16 @@ impl RunArgs {
                 Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish))) => {
                     if let Ok(payload) = std::str::from_utf8(&publish.payload) {
                         if let Ok(value) = payload.parse::<u16>() {
+                            debug!("Received new input value: {}", value);
                             if let Err(e) = tx.send(value) {
-                                eprintln!("Failed to send via channel: {}", e);
+                                error!("Failed to send via channel: {}", e);
                             }
                         }
                     }
                 }
                 Ok(_) => {}
                 Err(e) => {
-                    eprintln!("MQTT error: {:?}", e);
+                    error!("MQTT error: {:?}", e);
                 }
             }
         }

@@ -32,6 +32,8 @@ enum Commands {
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn main() {
+    env_logger::init();
+
     let args = Args::parse();
     let mut pid = Pid::<f64>::new(args.setpoint, 100.0);
     pid.p(args.kp, 100.0);
