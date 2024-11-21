@@ -4,7 +4,7 @@ use clap::Parser;
 use jiff::{Timestamp, ToSpan};
 use pid::Pid;
 
-#[derive(Parser, Clone)]
+#[derive(Parser)]
 pub struct SimulateArgs {
     #[arg(short, long)]
     input_file: String,

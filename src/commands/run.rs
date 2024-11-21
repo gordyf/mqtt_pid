@@ -9,7 +9,7 @@ use tokio::sync::watch;
 use tokio::task;
 use tokio::time;
 
-#[derive(Parser, Clone)]
+#[derive(Parser)]
 pub struct RunArgs {
     #[arg(short, long)]
     input_topic: String,

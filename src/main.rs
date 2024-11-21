@@ -24,7 +24,7 @@ struct Args {
     command: Commands,
 }
 
-#[derive(Subcommand, Clone)]
+#[derive(Subcommand)]
 enum Commands {
     Run(RunArgs),
     Simulate(SimulateArgs),
