@@ -5,6 +5,7 @@ use log::info;
 use pid::Pid;
 use rumqttc::{AsyncClient, MqttOptions, QoS};
 use std::time::Duration;
+use std::time::Instant;
 use tokio::sync::watch;
 use tokio::task;
 use tokio::time;
@@ -29,7 +30,6 @@ impl RunArgs {
         let mut mqttoptions = MqttOptions::new("mqtt_pid", self.mqtt_host, self.mqtt_port);
         mqttoptions.set_keep_alive(Duration::from_secs(5));
         mqttoptions.set_max_packet_size(2000, 1000);
-
         let (client, mut eventloop) = AsyncClient::new(mqttoptions, 10);
         if let Err(e) = client.subscribe(self.input_topic, QoS::AtMostOnce).await {
             error!("Failed to subscribe to MQTT topic: {}", e);
@@ -78,23 +78,36 @@ impl RunArgs {
 
         info!("Topic subscribed; waiting for events.");
 
+        let ping_timeout_duration = Duration::from_secs(30);
+        let mut last_ping_response = Instant::now();
+
         loop {
-            let notification = eventloop.poll().await;
-            match notification {
-                Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish))) => {
-                    if let Ok(payload) = std::str::from_utf8(&publish.payload) {
-                        if let Ok(value) = payload.parse::<u16>() {
-                            debug!("Received new input value: {}", value);
-                            if let Err(e) = tx.send(value) {
-                                error!("Failed to send via channel: {}", e);
+            let elapsed = last_ping_response.elapsed();
+            if elapsed >= ping_timeout_duration {
+                panic!("No MQTT ping response received within the timeout period. Exiting.");
+            }
+
+            match time::timeout(ping_timeout_duration, eventloop.poll()).await {
+                Ok(notification) => match notification {
+                    Ok(rumqttc::Event::Incoming(rumqttc::Packet::Publish(publish))) => {
+                        if let Ok(payload) = std::str::from_utf8(&publish.payload) {
+                            if let Ok(value) = payload.parse::<u16>() {
+                                debug!("Received new input value: {}", value);
+                                if let Err(e) = tx.send(value) {
+                                    error!("Failed to send via channel: {}", e);
+                                }
                             }
                         }
                     }
-                }
-                Ok(_) => {}
-                Err(e) => {
-                    error!("MQTT error: {:?}", e);
-                }
+                    Ok(rumqttc::Event::Incoming(rumqttc::Packet::PingResp)) => {
+                        last_ping_response = Instant::now();
+                    }
+                    Ok(_) => {}
+                    Err(e) => {
+                        error!("MQTT error: {:?}", e);
+                    }
+                },
+                Err(_) => continue,
             }
         }
     }
